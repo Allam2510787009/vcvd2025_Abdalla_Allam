@@ -4,61 +4,60 @@ import numpy as np
 
 class TyreModel:
     """
-    Implements the Pacejka Magic Formula tyre model.
+    Pacejka tyre model using Bakker coefficients (Tables 2 & 3).
     """
 
-    def __init__(self, coeffs_path: str, mu: float):
-        self.mu = mu
-        self.coeffs = self._load_coeffs(coeffs_path)
+    def __init__(self, coeffs_path: str):
+        with open(coeffs_path, "r") as f:
+            self.c = json.load(f)
 
-    def _load_coeffs(self, path: str) -> dict:
+    def _magic_formula(self, B, C, D, E, phi):
+        return D * np.sin(C * np.arctan(B * phi))
+
+    # ---------------- Longitudinal Force ----------------
+    def longitudinal_force(self, kappa: np.ndarray, Fz: float):
         """
-        Load tyre coefficients from a JSON file.
+        Fz in Newton → converted to kN internally
         """
-        with open(path, "r") as f:
-            return json.load(f)
+        Fz = Fz / 1000.0  # kN
 
-    def _magic_formula(self, x: np.ndarray, B: float, C: float, D: float, E: float) -> np.ndarray:
+        p = self.c["Fx"]
+
+        D = p["a1"] * Fz**2 + p["a2"] * Fz
+        C = p["C"]
+        B = (p["a3"] * Fz**2 + p["a4"] * Fz) / (C * D * np.exp(p["a5"] * Fz))
+        E = p["a6"] * Fz**2 + p["a7"] * Fz + p["a8"]
+
+        phi = (1 - E) * kappa + (E / B) * np.arctan(B * kappa)
+
+        return self._magic_formula(B, C, D, E, phi)
+
+    # ---------------- Lateral Force ----------------
+    def lateral_force(self, alpha: float, kappa: np.ndarray, Fz: float, gamma: float = 0.0):
         """
-        Standard Pacejka Magic Formula.
+        alpha, gamma in radians
         """
-        return D * np.sin(
-            C * np.arctan(B * x - E * (B * x - np.arctan(B * x)))
-        )
+        Fz = Fz / 1000.0  # kN
 
-    def longitudinal_force(self, slip: np.ndarray, Fz: float) -> np.ndarray:
-        """
-        Compute longitudinal (brake) force Fx as a function of longitudinal slip.
-        """
-        params = self.coeffs["longitudinal"]
+        p = self.c["Fy"]
+        cam = self.c["camber"]
 
-        C = params["C"]
-        E = params["E"]
-        D = self.mu * Fz * params["D_factor"]
-        B = params["B"] / (C * D)
+        D = p["a1"] * Fz**2 + p["a2"] * Fz
+        C = p["C"]
+        B = (
+            p["a3"] * np.sin(p["a4"] * np.arctan(p["a5"] * Fz))
+            / (C * D)
+        ) * (1 - cam["a12"] * abs(gamma))
 
-        return self._magic_formula(slip, B, C, D, E)
+        E = p["a6"] * Fz**2 + p["a7"] * Fz + p["a8"]
 
-    def lateral_force(self, slip_angle_rad: float, slip: np.ndarray, Fz: float) -> np.ndarray:
-        """
-        Compute lateral force Fy with longitudinal slip as parameter.
-        """
-        params = self.coeffs["lateral"]
+        dSh = cam["a9"] * gamma
+        dSv = (cam["a10"] * Fz**2 + cam["a11"] * Fz) * gamma
 
-        C = params["C"]
-        E = params["E"]
-        D0 = self.mu * Fz * params["D_factor"]
-        B = params["B"] / (C * D0)
+        Fy = np.zeros_like(kappa)
 
-        Fy = np.zeros_like(slip)
-
-        for i, kappa in enumerate(slip):
-            # Simple combined-slip reduction (acceptable for assignment)
-            reduction = max(0.0, 1.0 - params["combined_reduction"] * kappa)
-            D = D0 * reduction
-
-            Fy[i] = self._magic_formula(
-                np.array([slip_angle_rad]), B, C, D, E
-            )[0]
+        for i, _ in enumerate(kappa):
+            phi = (1 - E) * (alpha + dSh) + (E / B) * np.arctan(B * (alpha + dSh))
+            Fy[i] = self._magic_formula(B, C, D, E, phi) + dSv
 
         return Fy
