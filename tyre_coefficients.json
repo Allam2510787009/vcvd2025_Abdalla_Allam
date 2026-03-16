@@ -1,0 +1,36 @@
+{
+  "_comment": "Tyre formula coefficients from: Bakker, Egbert and Nyborg, Lars and Pacejka, Hans B., 'Tyre Modelling for Use in Vehicle Dynamics Studies', SAE Transactions, 1987. Table 2 (Fz in kN) and Table 3 (gamma in deg.).",
+  "table2": {
+    "_description": "Coefficients for tyre formula (with load influence), Fz in kN",
+    "side_force_Fy": {
+      "a1": -22.1,
+      "a2": 1011.0,
+      "a3": 1078.0,
+      "a4": 1.82,
+      "a5": 0.208,
+      "a6": 0.000,
+      "a7": -0.354,
+      "a8": 0.707
+    },
+    "brake_force_Fx": {
+      "a1": -21.3,
+      "a2": 1144.0,
+      "a3": 49.6,
+      "a4": 226.0,
+      "a5": 0.069,
+      "a6": -0.006,
+      "a7": 0.056,
+      "a8": 0.486
+    }
+  },
+  "table3": {
+    "_description": "Coefficients for tyre formula connected with camber influence, gamma in deg.",
+    "side_force_Fy": {
+      "a9":  0.028,
+      "a10": 0.000,
+      "a11": 14.8,
+      "a12": 0.022,
+      "a13": 0.000
+    }
+  }
+}
